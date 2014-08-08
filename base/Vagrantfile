@@ -1,0 +1,44 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+	config.vm.box = "ubuntu/trusty64"
+
+	# VirtualBox Provider
+	#
+	# A heavier and more robust enviornment for running the docker containers
+	# out of. This is the default environment which vagrant up will initialize.
+	config.vm.provider :virtualbox do |virtualbox|
+		virtualbox.name      = "ubuntu-lx-oracle"
+		virtualbox.customize ["modifyvm", :id, "--memory", "1024"]
+	end
+
+	# Docker Provider
+	#
+	# Lighter weight than the default VM which Vagrant will spin up, you can
+	# launch using the docker provider by issueing the command:
+	#   $ vagrant up --provider=docker
+	#
+	# There appear to be some issues with the docker provider hanging on Windows
+	# systems when attempting to synchronize folders.
+	config.vm.provider :docker do |docker|
+		docker.image = "ubuntu:latest"
+	end
+
+	# Provision the apache server image for docker.
+	config.vm.provision :docker do |docker|
+		docker.build_image "/", args: "-t swquinn/oracle-11g"
+	end
+
+	#config.vm.provision :docker, run: "always" do |docker|
+	#	docker.run "extesla/mongodb",
+	#		args: "--name mongodb -v '/var/mongodb/data:/data' -v '/vagrant/logs:/var/mongodb/logs'",
+	#		cmd:  "--config=/var/mongodb/mongodb.conf",
+	#		daemonize: true
+	#	#docker.run "extesla/mongodb", args: "-d -v /vagrant/mongodb/data:/data --name mongodb -p 5000:27017"
+	#end
+end
