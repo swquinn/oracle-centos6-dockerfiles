@@ -75,23 +75,25 @@ MAINTAINER Sean Quinn <swquinn@gmail.com>
 RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
 RUN yum -y clean all;
 RUN yum -y install binutils compat-libstdc++-33.x86_64 elfutils-libelf \
-  elfutils-libelf-devel gcc gcc-c++ glibc glibc-common glibc-devel \
-  glibc-headers ksh libaio libaio-devel libgcc libstdc++ libstdc++-devel \
-  make sysstat unixodbc unixodbc-devel unzip zlibc; yum -y clean all;
+    elfutils-libelf-devel gcc gcc-c++ glibc glibc-common glibc-devel \
+    glibc-headers ksh libaio libaio-devel libgcc libstdc++ libstdc++-devel \
+    make sysstat unixodbc unixodbc-devel unzip zlibc; yum -y clean all;
 RUN ln -s /usr/lib/x86_64-linux-gnu /usr/lib64; \
-  ln -sf /bin/bash /bin/sh;
+    ln -sf /bin/bash /bin/sh;
 RUN mkdir -p /opt/app/oracle/product/11g
 RUN mkdir -p /var/opt/oracle
 RUN mkdir -p /tmp/orainst
 
 # Create user groups and users, add user to groups.
 RUN /usr/sbin/groupadd -g 5001 oinstall; \
-  /usr/sbin/groupadd -g 5002 dba; \
-  /usr/sbin/useradd  -u 5001 -m -g oinstall -G dba -s /bin/bash oracle; \
-  echo "oracle:password"|chpasswd;
+    /usr/sbin/groupadd -g 5002 dba; \
+    /usr/sbin/useradd  -u 5001 -m -g oinstall -G dba,oinstall -s /bin/bash oracle; \
+    echo "oracle:password"|chpasswd;
 
-# Assign the volume for mounting...
-VOLUME ["/tmp/orainst"]
+#
+#
+#
+ADD orainst /tmp/orainst
 
 # 
 # Copy over the configuration files to the /var/opt/oracle/config directory
@@ -101,13 +103,21 @@ VOLUME ["/tmp/orainst"]
 #
 ADD config /var/opt/oracle
 
+#
+# Explode the Oracle installation files into the installer.
+#
+RUN unzip "/tmp/orainst/*.zip" -d /tmp/orainst
+
 # Assign ownership and permissions to the oracle directories, recursively.
 RUN chown -R oracle:oinstall /opt/app
+RUN chown -R oracle:oinstall /tmp/orainst
 RUN chmod -R 775 /opt/app
+RUN chmod +x /tmp/orainst/database/runInstaller
 
 # Modify the Oracle environment settings, export them to the bash profile.
 ENV TMP /tmp
 ENV TMPDIR /tmp
+ENV HOSTNAME localhost
 ENV ORACLE_SID orcl
 ENV ORACLE_BASE /opt/app/oracle
 ENV ORACLE_HOME /opt/app/oracle/product/11g
@@ -115,10 +125,12 @@ ENV LD_LIBRARY_PATH $ORACLE_HOME/lib:/lib:/usr/lib
 ENV CLASSPATH $ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
 ENV PATH $ORACLE_HOME/bin:$PATH
 
-# Change to the Oracle user
-USER oracle
+EXPOSE 1521
 
-# Run the installer, silently
-ENTRYPOINT ["/tmp/orainst/database/runInstaller"]
-CMD ["--help"]
+#
+# Change to the Oracle user, and run the installer.
+#
+#USER oracle
 
+#ENTRYPOINT ["/tmp/orainst/database/runInstaller"]
+#CMD ["--help"]
